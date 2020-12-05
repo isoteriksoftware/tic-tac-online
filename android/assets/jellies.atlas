@@ -1,0 +1,48 @@
+
+jellies.png
+size: 512,256
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+j1
+  rotate: false
+  xy: 132, 15
+  size: 128, 115
+  orig: 128, 115
+  offset: 0, 0
+  index: -1
+j2
+  rotate: false
+  xy: 2, 122
+  size: 128, 126
+  orig: 128, 126
+  offset: 0, 0
+  index: -1
+j3
+  rotate: false
+  xy: 262, 23
+  size: 128, 108
+  orig: 128, 108
+  offset: 0, 0
+  index: -1
+j4
+  rotate: false
+  xy: 2, 2
+  size: 128, 118
+  orig: 128, 118
+  offset: 0, 0
+  index: -1
+j5
+  rotate: false
+  xy: 132, 132
+  size: 128, 116
+  orig: 128, 116
+  offset: 0, 0
+  index: -1
+j6
+  rotate: false
+  xy: 262, 133
+  size: 128, 115
+  orig: 128, 115
+  offset: 0, 0
+  index: -1
