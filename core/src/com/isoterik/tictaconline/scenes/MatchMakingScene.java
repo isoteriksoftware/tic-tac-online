@@ -105,20 +105,10 @@ public class MatchMakingScene extends Scene {
 
                 activeDialog = uiHelper.showDialog("Connecting...", "Please wait while we attempt to connect you with the other player...",
                         canvas);
-                btnStart.setDisabled(true);
+                //btnStart.setDisabled(true);
 
                 // Send a match request
                 clientConnection.emit("player.match", opponentId);
-
-                // Listen to possible replies from the server
-                clientConnection.on("player.match.opponent-not-found", args -> {
-                    activeDialog.remove();
-                    uiHelper.showErrorDialog("The player is no longer connected!", canvas);
-                })
-                .on("player.match.opponent-matched", args -> {
-                    activeDialog.remove();
-                    uiHelper.showErrorDialog("This player is now matched with another player!", canvas);
-                });
             }
         });
     }
@@ -129,7 +119,7 @@ public class MatchMakingScene extends Scene {
 
     private void setupConnection() {
         try {
-            // First, clear all events that we may have register before.
+            // First, clear all events that we may have registered before.
             clientConnection.off("player.connect");
             clientConnection.off("player.joined");
             clientConnection.off("player.left");
@@ -138,13 +128,15 @@ public class MatchMakingScene extends Scene {
             clientConnection.off("player.match.request");
             clientConnection.off("player.match.start");
             clientConnection.off("player.match.opponent-declined");
+            clientConnection.off("player.match.opponent-not-found");
+            clientConnection.off("player.match.opponent-matched");
 
             // Let the server know we are ready to connect
             clientConnection.emit("player.ready");
 
             clientConnection
             .on("player.connect", args -> {
-                log("Connected!");
+                availablePlayers.clear();
 
                 try {
                     JSONObject data = (JSONObject)args[0];
@@ -248,6 +240,44 @@ public class MatchMakingScene extends Scene {
 
                 String playerName = (String)args[0];
                 activeDialog = uiHelper.showDialog("DECLINED!", "'" + playerName + "' declined your challenge!", canvas);
+            })
+            .on("player.match.opponent-not-found", args -> {
+                // Remove the player from our list
+                availablePlayers.removeKey((String)args[0]);
+                activeDialog.remove();
+                uiHelper.showErrorDialog("The player is no longer connected!", canvas);
+            })
+            .on("player.match.opponent-matched", args -> {
+                // Remove the player from our list
+                availablePlayers.removeKey((String)args[0]);
+
+                activeDialog.remove();
+                uiHelper.showErrorDialog("This player is currently playing with another player!", canvas);
+            })
+            .once(Socket.EVENT_ERROR, args -> {
+                MinGdx.instance().app.postRunnable(() -> {
+                    activeDialog = uiHelper.showErrorDialog("A server error occurred!",
+                            canvas);
+                });
+            })
+            .once(Socket.EVENT_RECONNECTING, args -> {
+                MinGdx.instance().app.postRunnable(() -> {
+                    activeDialog = uiHelper.showErrorDialog("Lost connection to the server!",
+                            canvas);
+                });
+            })
+            .once(Socket.EVENT_RECONNECT, args -> {
+                // Clear the current list of available players
+                availablePlayers.clear();
+
+                clientConnection.emit("player.ready");
+
+                MinGdx.instance().app.postRunnable(() -> {
+                    if (activeDialog != null)
+                        activeDialog.remove();
+
+                    uiHelper.showDialog("RECONNECTED", "Reconnected to server!", canvas);
+                });
             });
 
         } catch (Exception e) {

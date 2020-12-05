@@ -1,5 +1,6 @@
 package com.isoterik.tictaconline.scenes;
 
+import com.badlogic.gdx.Preferences;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.math.Interpolation;
 import com.badlogic.gdx.scenes.scene2d.Actor;
@@ -16,6 +17,8 @@ import com.isoterik.tictaconline.Constants;
 import com.isoterik.tictaconline.UIHelper;
 import io.socket.client.IO;
 import io.socket.client.Socket;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.net.URISyntaxException;
 
@@ -55,9 +58,9 @@ public class SplashScene extends Scene {
             }
         });
 
-        playersLabel = new Label("100", uiHelper.skin);
+        playersLabel = new Label("...", uiHelper.skin);
         playersLabel.setColor(cyan);
-        matchesLabel = new Label("300", uiHelper.skin);
+        matchesLabel = new Label("...", uiHelper.skin);
         matchesLabel.setColor(cyan);
 
         Table left = new Table();
@@ -85,7 +88,9 @@ public class SplashScene extends Scene {
         Window dialog = new Window("Choose a username", uiHelper.skin);
         dialog.setKeepWithinStage(false);
 
-        TextField usernameField = new TextField("", uiHelper.skin);
+        Preferences preferences = MinGdx.instance().app.getPreferences("user_data");
+
+        TextField usernameField = new TextField(preferences.getString("username", ""), uiHelper.skin);
         usernameField.setMessageText("Enter a username");
 
         TextButton btnStart = new TextButton("Go!", uiHelper.skin, "small");
@@ -97,6 +102,9 @@ public class SplashScene extends Scene {
                     uiHelper.showErrorDialog("Please enter a username!", canvas);
                     return;
                 }
+
+                preferences.putString("username", username);
+                preferences.flush();
 
                 dialog.remove();
 
@@ -128,8 +136,37 @@ public class SplashScene extends Scene {
 
     private void setupConnection() {
         try {
-            clientConnection = IO.socket("http://localhost:5000");
+            clientConnection = IO.socket("http://localhost");
             clientConnection.connect();
+
+            // Listen to status change events
+            clientConnection
+                    .on("game.status.changed", args -> {
+                       try {
+                           JSONObject data = (JSONObject)args[0];
+                           int players = data.getInt("players");
+                           int matches = data.getInt("matches");
+
+                           MinGdx.instance().app.postRunnable(() -> {
+                               playersLabel.setText(players);
+                               matchesLabel.setText(matches);
+                           });
+                       } catch (JSONException e) {
+                           e.printStackTrace();
+                       }
+                    })
+                    .on(Socket.EVENT_CONNECT_ERROR, args -> {
+                        MinGdx.instance().app.postRunnable(() -> {
+                            uiHelper.showErrorDialog("Failed to connect to the server. Please make sure you're connected to the internet",
+                                    canvas);
+                        });
+                    })
+                    .on(Socket.EVENT_CONNECT_TIMEOUT, args -> {
+                        MinGdx.instance().app.postRunnable(() -> {
+                            uiHelper.showErrorDialog("Failed to connect to the server. Please make sure you're connected to the internet",
+                                    canvas);
+                        });
+                    });
         } catch (URISyntaxException e) {
             e.printStackTrace();
         }

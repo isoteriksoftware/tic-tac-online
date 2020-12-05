@@ -82,7 +82,7 @@ public class GameScene extends Scene {
 
         turnLabel = new Label(turn, uiHelper.skin, "big");
         turnLabel.setAlignment(Align.center);
-        turnLabel.setFontScale(0.7f);
+        turnLabel.setFontScale(0.5f);
 
         TextButton btnForfeit = new TextButton("Forfeit", uiHelper.skin, "small");
         btnForfeit.addListener(new ChangeListener() {
@@ -229,18 +229,37 @@ public class GameScene extends Scene {
                         activeDialog = uiHelper.showDialog("GAME OVER!", finalMessage, canvas);
                         transitionToMatchMakingScene();
                     });
-                });
+                })
+                .once(Socket.EVENT_ERROR, args -> {
+                    MinGdx.instance().app.postRunnable(() -> {
+                        uiHelper.showErrorDialog("A server error occurred!",
+                                canvas);
+                    });
+                })
+                .once(Socket.EVENT_RECONNECTING, args -> {
+                    MinGdx.instance().app.postRunnable(() -> {
+                        uiHelper.showErrorDialog("Lost connection to the server!",
+                                canvas);
+                    });
+                })
+                .once(Socket.EVENT_RECONNECT, args -> transitionToMatchMakingScene(true));
     }
 
-    private void transitionToMatchMakingScene() {
+    private void transitionToMatchMakingScene(boolean reconnected) {
         Timer.schedule(new Timer.Task() {
             @Override
             public void run() {
                 MinGdx.instance().sceneManager.revertToPreviousScene(
                         SceneTransitions.slide(1f, TransitionDirection.DOWN, true,
                                 Interpolation.pow5Out));
+                if (reconnected)
+                    clientConnection.emit("player.ready");
             }
         }, 3);
+    }
+
+    private void transitionToMatchMakingScene() {
+        transitionToMatchMakingScene(false);
     }
 
     private void setTurn(String turnId) {
@@ -252,31 +271,3 @@ public class GameScene extends Scene {
         turnLabel.setText(turn);
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
