@@ -46,16 +46,19 @@ public class MatchMakingScene extends Scene {
         setupUI();
         setupConnection();
 
-        String MAPPING_EXIT = "mapping_exit_match_making_scene";
+        final String MAPPING_EXIT = "mapping_exit_match_making_scene";
         inputManager.addMapping(MAPPING_EXIT, KeyTrigger.keyDownTrigger(KeyCodes.BACK),
                 KeyTrigger.keyDownTrigger(KeyCodes.ESCAPE),
                 KeyTrigger.keyDownTrigger(KeyCodes.END));
         inputManager.mapListener(MAPPING_EXIT, (IKeyListener) (mappingName, evt) -> {
-            clientConnection.emit("player.leave");
+            uiHelper.showConfirmDialog("Confirm Exit", "Do you really want to go offline now?", canvas,
+                    () -> {
+                        clientConnection.emit("player.leave");
 
-            MinGdx.instance().sceneManager.revertToPreviousScene(
-                    SceneTransitions.slide(.8f, TransitionDirection.UP, true, Interpolation.pow5Out)
-            );
+                        MinGdx.instance().sceneManager.revertToPreviousScene(
+                                SceneTransitions.slide(.8f, TransitionDirection.UP, true, Interpolation.pow5Out)
+                        );
+                    });
         });
     }
 
@@ -244,12 +247,15 @@ public class MatchMakingScene extends Scene {
             .on("player.match.opponent-not-found", args -> {
                 // Remove the player from our list
                 availablePlayers.removeKey((String)args[0]);
+                playersList.setItems(availablePlayers.values().toArray());
+
                 activeDialog.remove();
                 uiHelper.showErrorDialog("The player is no longer connected!", canvas);
             })
             .on("player.match.opponent-matched", args -> {
                 // Remove the player from our list
                 availablePlayers.removeKey((String)args[0]);
+                playersList.setItems(availablePlayers.values().toArray());
 
                 activeDialog.remove();
                 uiHelper.showErrorDialog("This player is currently playing with another player!", canvas);

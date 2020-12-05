@@ -14,6 +14,9 @@ import com.isoterik.mgdx.GameObject;
 import com.isoterik.mgdx.MinGdx;
 import com.isoterik.mgdx.Scene;
 import com.isoterik.mgdx.Transform;
+import com.isoterik.mgdx.input.IKeyListener;
+import com.isoterik.mgdx.input.KeyCodes;
+import com.isoterik.mgdx.input.KeyTrigger;
 import com.isoterik.mgdx.io.GameAssetsLoader;
 import com.isoterik.mgdx.m2d.scenes.transition.SceneTransitions;
 import com.isoterik.mgdx.m2d.scenes.transition.TransitionDirection;
@@ -61,6 +64,21 @@ public class GameScene extends Scene {
 
         turnId = initialGameData.getString("turn");
         setTurn(turnId);
+
+        final String MAPPING_EXIT = "mapping_exit_game_scene";
+        inputManager.addMapping(MAPPING_EXIT, KeyTrigger.keyDownTrigger(KeyCodes.BACK),
+                KeyTrigger.keyDownTrigger(KeyCodes.ESCAPE),
+                KeyTrigger.keyDownTrigger(KeyCodes.END));
+        inputManager.mapListener(MAPPING_EXIT, (IKeyListener) (mappingName, evt) -> {
+            uiHelper.showConfirmDialog("Confirm Exit", "Do you really want to forfeit the game? You'll lose!", canvas,
+                    () -> {
+                        clientConnection.emit("player.match.forfeit", matchId);
+
+                        MinGdx.instance().sceneManager.revertToPreviousScene(
+                                SceneTransitions.slide(.8f, TransitionDirection.UP, true, Interpolation.pow5Out)
+                        );
+                    });
+        });
     }
 
     private void setupCamera() {

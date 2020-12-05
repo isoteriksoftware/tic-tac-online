@@ -1,5 +1,6 @@
 package com.isoterik.tictaconline.scenes;
 
+import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Preferences;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.math.Interpolation;
@@ -10,6 +11,9 @@ import com.badlogic.gdx.utils.Align;
 import com.badlogic.gdx.utils.viewport.StretchViewport;
 import com.isoterik.mgdx.MinGdx;
 import com.isoterik.mgdx.Scene;
+import com.isoterik.mgdx.input.IKeyListener;
+import com.isoterik.mgdx.input.KeyCodes;
+import com.isoterik.mgdx.input.KeyTrigger;
 import com.isoterik.mgdx.m2d.scenes.transition.SceneTransitions;
 import com.isoterik.mgdx.m2d.scenes.transition.TransitionDirection;
 import com.isoterik.mgdx.utils.WorldUnits;
@@ -30,6 +34,8 @@ public class SplashScene extends Scene {
 
     private Socket clientConnection;
 
+    private Window activeDialog;
+
     public SplashScene() {
         worldUnits = new WorldUnits(Constants.GUI_WIDTH, Constants.GUI_HEIGHT, 64f);
         setupCanvas(new StretchViewport(worldUnits.getScreenWidth(), worldUnits.getScreenHeight()));
@@ -38,6 +44,18 @@ public class SplashScene extends Scene {
         setBackgroundColor(new Color(0.2f, 0.2f, 0.2f, 1f));
         setupUI();
         setupConnection();
+
+        final String MAPPING_EXIT = "mapping_exit_game";
+        inputManager.addMapping(MAPPING_EXIT, KeyTrigger.keyDownTrigger(KeyCodes.BACK),
+                KeyTrigger.keyDownTrigger(KeyCodes.ESCAPE),
+                KeyTrigger.keyDownTrigger(KeyCodes.END));
+        inputManager.mapListener(MAPPING_EXIT, (IKeyListener) (mappingName, evt) -> {
+            uiHelper.showConfirmDialog("Confirm Exit", "Do you really want to exit the game?", canvas,
+                    () -> {
+                        clientConnection.disconnect();
+                        Gdx.app.exit();
+                    });
+        });
     }
 
     private void setupUI() {
@@ -136,11 +154,19 @@ public class SplashScene extends Scene {
 
     private void setupConnection() {
         try {
-            clientConnection = IO.socket("http://localhost");
+            clientConnection = IO.socket("http://localhost:5000");
             clientConnection.connect();
+
+            activeDialog = uiHelper.showDialog("CONNECTING...", "Connecting to the game server, please hold on...", canvas);
 
             // Listen to status change events
             clientConnection
+                    .once(Socket.EVENT_CONNECT, args -> {
+                        if (activeDialog != null)
+                            activeDialog.remove();
+
+                        activeDialog = uiHelper.showDialog("SUCESS!", "Successfully connected to the server. Play on!", canvas);
+                    })
                     .on("game.status.changed", args -> {
                        try {
                            JSONObject data = (JSONObject)args[0];
@@ -172,37 +198,3 @@ public class SplashScene extends Scene {
         }
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
