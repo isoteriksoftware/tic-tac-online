@@ -165,6 +165,13 @@ public class GameScene extends Scene {
             }
         }
 
+        // First, clear all events that we may have register before.
+        clientConnection.off("player.move.made");
+        clientConnection.off("player.match.opponent-disconnected");
+        clientConnection.off("player.match.won");
+        clientConnection.off("player.match.draw");
+        clientConnection.off("player.match.forfeited");
+
         // Setup listeners for moves made
         clientConnection
                 .on("player.move.made", args -> {

@@ -1,21 +1,31 @@
 package com.isoterik.tictaconline.scenes;
 
 import com.badlogic.gdx.graphics.Color;
-import com.badlogic.gdx.scenes.scene2d.ui.Label;
-import com.badlogic.gdx.scenes.scene2d.ui.Table;
-import com.badlogic.gdx.scenes.scene2d.ui.TextButton;
+import com.badlogic.gdx.math.Interpolation;
+import com.badlogic.gdx.scenes.scene2d.Actor;
+import com.badlogic.gdx.scenes.scene2d.ui.*;
+import com.badlogic.gdx.scenes.scene2d.utils.ChangeListener;
 import com.badlogic.gdx.utils.Align;
 import com.badlogic.gdx.utils.viewport.StretchViewport;
+import com.isoterik.mgdx.MinGdx;
 import com.isoterik.mgdx.Scene;
+import com.isoterik.mgdx.m2d.scenes.transition.SceneTransitions;
+import com.isoterik.mgdx.m2d.scenes.transition.TransitionDirection;
 import com.isoterik.mgdx.utils.WorldUnits;
 import com.isoterik.tictaconline.Constants;
 import com.isoterik.tictaconline.UIHelper;
+import io.socket.client.IO;
+import io.socket.client.Socket;
+
+import java.net.URISyntaxException;
 
 public class SplashScene extends Scene {
     private final WorldUnits worldUnits;
     private final UIHelper uiHelper;
 
     private Label playersLabel, matchesLabel;
+
+    private Socket clientConnection;
 
     public SplashScene() {
         worldUnits = new WorldUnits(Constants.GUI_WIDTH, Constants.GUI_HEIGHT, 64f);
@@ -24,6 +34,7 @@ public class SplashScene extends Scene {
 
         setBackgroundColor(new Color(0.2f, 0.2f, 0.2f, 1f));
         setupUI();
+        setupConnection();
     }
 
     private void setupUI() {
@@ -37,6 +48,12 @@ public class SplashScene extends Scene {
         label.setFontScale(0.9f);
 
         TextButton btnPlay = new TextButton("PLAY", uiHelper.skin);
+        btnPlay.addListener(new ChangeListener() {
+            @Override
+            public void changed(ChangeEvent event, Actor actor) {
+                showStartDialog();
+            }
+        });
 
         playersLabel = new Label("100", uiHelper.skin);
         playersLabel.setColor(cyan);
@@ -62,6 +79,60 @@ public class SplashScene extends Scene {
         root.add(right);
 
         canvas.addActor(root);
+    }
+
+    private void showStartDialog() {
+        Window dialog = new Window("Choose a username", uiHelper.skin);
+        dialog.setKeepWithinStage(false);
+
+        TextField usernameField = new TextField("", uiHelper.skin);
+        usernameField.setMessageText("Enter a username");
+
+        TextButton btnStart = new TextButton("Go!", uiHelper.skin, "small");
+        btnStart.addListener(new ChangeListener() {
+            @Override
+            public void changed(ChangeEvent event, Actor actor) {
+                String username = usernameField.getText().trim();
+                if (username.equals("")) {
+                    uiHelper.showErrorDialog("Please enter a username!", canvas);
+                    return;
+                }
+
+                dialog.remove();
+
+                MinGdx.instance().setScene(new MatchMakingScene(username, clientConnection),
+                        SceneTransitions.slide(.8f, TransitionDirection.DOWN, false, Interpolation.pow5Out));
+            }
+        });
+
+        TextButton btnClose = new TextButton("Cancel", uiHelper.skin, "small");
+        btnClose.addListener(new ChangeListener() {
+            @Override
+            public void changed(ChangeEvent event, Actor actor) {
+                uiHelper.actorAnimation.slideOutThenRemove(dialog, TransitionDirection.DOWN, .5f);
+            }
+        });
+
+        dialog.top();
+        dialog.add(usernameField).expand().fillX().pad(20).top().colspan(2);
+        dialog.row();
+        dialog.add(btnClose).pad(20).padBottom(5).expandX();
+        dialog.add(btnStart).pad(20).padBottom(5);
+
+        dialog.setSize(350, 250);
+        dialog.setPosition((worldUnits.getScreenWidth() - dialog.getWidth())/2f,
+                (worldUnits.getScreenHeight() - dialog.getHeight())/2f);
+        canvas.addActor(dialog);
+        uiHelper.actorAnimation.slideIn(dialog, TransitionDirection.UP, .5f);
+    }
+
+    private void setupConnection() {
+        try {
+            clientConnection = IO.socket("http://localhost:5000");
+            clientConnection.connect();
+        } catch (URISyntaxException e) {
+            e.printStackTrace();
+        }
     }
 }
 

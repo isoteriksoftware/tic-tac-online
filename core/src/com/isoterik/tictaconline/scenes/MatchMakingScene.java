@@ -9,18 +9,18 @@ import com.badlogic.gdx.utils.ArrayMap;
 import com.badlogic.gdx.utils.viewport.StretchViewport;
 import com.isoterik.mgdx.MinGdx;
 import com.isoterik.mgdx.Scene;
+import com.isoterik.mgdx.input.IKeyListener;
+import com.isoterik.mgdx.input.KeyCodes;
+import com.isoterik.mgdx.input.KeyTrigger;
 import com.isoterik.mgdx.m2d.scenes.transition.SceneTransitions;
 import com.isoterik.mgdx.m2d.scenes.transition.TransitionDirection;
 import com.isoterik.mgdx.utils.WorldUnits;
 import com.isoterik.tictaconline.Constants;
 import com.isoterik.tictaconline.UIHelper;
-import io.socket.client.IO;
 import io.socket.client.Socket;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
-
-import java.net.URISyntaxException;
 
 public class MatchMakingScene extends Scene {
     private final MinGdx minGdx;
@@ -31,11 +31,12 @@ public class MatchMakingScene extends Scene {
 
     private final ArrayMap<String, String> availablePlayers;
 
-    private Socket clientConnection;
+    private final Socket clientConnection;
     private final String username;
     private boolean joinedGame; // Have we been enlisted as an available player?
 
-    public MatchMakingScene(String username) {
+    public MatchMakingScene(String username, Socket clientConnection) {
+        this.clientConnection = clientConnection;
         this.username = username;
         availablePlayers = new ArrayMap<>();
 
@@ -44,6 +45,18 @@ public class MatchMakingScene extends Scene {
         setBackgroundColor(new Color(0.2f, 0.2f, 0.25f, 1f));
         setupUI();
         setupConnection();
+
+        String MAPPING_EXIT = "mapping_exit_match_making_scene";
+        inputManager.addMapping(MAPPING_EXIT, KeyTrigger.keyDownTrigger(KeyCodes.BACK),
+                KeyTrigger.keyDownTrigger(KeyCodes.ESCAPE),
+                KeyTrigger.keyDownTrigger(KeyCodes.END));
+        inputManager.mapListener(MAPPING_EXIT, (IKeyListener) (mappingName, evt) -> {
+            clientConnection.emit("player.leave");
+
+            MinGdx.instance().sceneManager.revertToPreviousScene(
+                    SceneTransitions.slide(.8f, TransitionDirection.UP, true, Interpolation.pow5Out)
+            );
+        });
     }
 
     private void setupUI() {
@@ -116,19 +129,34 @@ public class MatchMakingScene extends Scene {
 
     private void setupConnection() {
         try {
-            clientConnection = IO.socket("http://localhost:5000");
-            clientConnection.connect();
+            // First, clear all events that we may have register before.
+            clientConnection.off("player.connect");
+            clientConnection.off("player.joined");
+            clientConnection.off("player.left");
+            clientConnection.off("player.matched");
+            clientConnection.off("player.welcome");
+            clientConnection.off("player.match.request");
+            clientConnection.off("player.match.start");
+            clientConnection.off("player.match.opponent-declined");
 
-            clientConnection.on("player.connect", args -> {
+            // Let the server know we are ready to connect
+            clientConnection.emit("player.ready");
+
+            clientConnection
+            .on("player.connect", args -> {
                 log("Connected!");
 
                 try {
                     JSONObject data = (JSONObject)args[0];
+                    String playerId = data.getString("id");
 
                     JSONArray unmatchedPlayers = data.getJSONArray("unmatched");
                     for (int i = 0; i < unmatchedPlayers.length(); i++) {
                         JSONObject player = unmatchedPlayers.getJSONObject(i);
-                        availablePlayers.put(player.getString("id"), player.getString("name"));
+                        String id = player.getString("id");
+
+                        if (!id.equals(playerId))
+                            availablePlayers.put(id, player.getString("name"));
                     }
 
                     // Update the list UI of available players
@@ -144,6 +172,7 @@ public class MatchMakingScene extends Scene {
                 try {
                     JSONObject data = (JSONObject)args[0];
 
+                    log(data.getString("id") + " joined");
                     availablePlayers.put(data.getString("id"), data.getString("playerName"));
 
                     // Update the list UI of available players
@@ -153,6 +182,8 @@ public class MatchMakingScene extends Scene {
                 }
             })
             .on("player.left", args -> {
+                log("Player left received: " + args[0]);
+                log("Has leaver: " + availablePlayers.containsKey((String)args[0]));
                 availablePlayers.removeKey((String)args[0]);
 
                 // Update the list UI of available players
@@ -219,7 +250,7 @@ public class MatchMakingScene extends Scene {
                 activeDialog = uiHelper.showDialog("DECLINED!", "'" + playerName + "' declined your challenge!", canvas);
             });
 
-        } catch (URISyntaxException e) {
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }

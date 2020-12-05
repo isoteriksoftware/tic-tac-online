@@ -1,10 +1,12 @@
 package com.isoterik.tictaconline;
 
 import com.badlogic.gdx.Application;
+import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.math.MathUtils;
 import com.isoterik.mgdx.MinGdxGame;
 import com.isoterik.mgdx.Scene;
+import com.isoterik.mgdx.input.KeyCodes;
 import com.isoterik.mgdx.m2d.scenes.transition.SceneTransitions;
 import com.isoterik.tictaconline.scenes.GameScene;
 import com.isoterik.tictaconline.scenes.MatchMakingScene;
@@ -14,12 +16,13 @@ public class TicTacOnline extends MinGdxGame {
 	@Override
 	protected Scene initGame() {
 	    minGdx.app.setLogLevel(Application.LOG_DEBUG);
+		Gdx.input.setCatchKey(KeyCodes.BACK, true);
 
 	    loadAssets();
 		UIHelper.init();
 
 		splashTransition = SceneTransitions.fade(1f);
-		/*return new SplashScene();*/ return new MatchMakingScene("player" + MathUtils.random(1, 100));
+		return new SplashScene();
 	}
 
 	private void loadAssets() {
