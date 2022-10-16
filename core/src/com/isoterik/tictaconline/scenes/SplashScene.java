@@ -154,7 +154,7 @@ public class SplashScene extends Scene {
 
     private void setupConnection() {
         try {
-            clientConnection = IO.socket("http://localhost:5000");
+            clientConnection = IO.socket("https://tictac-api.herokuapp.com/");
             clientConnection.connect();
 
             activeDialog = uiHelper.showDialog("CONNECTING...", "Connecting to the game server, please hold on...", canvas);
